@@ -1,7 +1,6 @@
 package db
 
 import (
-	"github.com/covrom/highloadcup2018/dict"
 	"sync"
 )
 
@@ -38,13 +37,12 @@ type Column struct {
 	// индекс коллекции - значение DataEntry
 	values [][]valEntry
 
-	dict *dict.LeafDictonary
+	dict *Dictonary
 
 	useval bool
 	use1b  bool     // биткарта, 1 бит на значение
 	use2b  bool     // биткарта, 2 бит на значение
 	use4b  bool     // биткарта, 4 бит на значение
-	useset bool     // в качестве значения val по ID - массив с сохранением порядка, а не одиночное значение
 	bmp    []uint64 // биткарта
 	count  []int32  // количества по idx=val
 
@@ -56,23 +54,19 @@ type Column struct {
 	chset chan kvSet
 }
 
-func NewColumnZeroString(lines, vals int, useset bool, zeroval string) *Column {
-	dct := dict.NewDictonary(vals)
-	return NewColumnZeroDataEntry(lines, vals, useset, dct, DataEntry(dct.Put(zeroval)))
+func NewColumnZeroString(lines, vals int, zeroval string) *Column {
+	dct := NewDictonary(vals)
+	return NewColumnZeroDataEntry(lines, vals, dct, DataEntry(dct.Put(zeroval)))
 }
 
-func NewColumnZeroDataEntry(lines, vals int, useset bool, dct *dict.LeafDictonary, zeroval DataEntry) *Column {
+func NewColumnZeroDataEntry(lines, vals int, dct *Dictonary, zeroval DataEntry) *Column {
 	ret := &Column{
 		minId: 0xffffffff,
 		dict:  dct,
 		empty: zeroval,
 		chset: make(chan kvSet, 1000),
 	}
-	if useset {
-		ret.useset = true
-		ret.clusterset = make([][]DataEntry, 0, lines)
-		ret.values = make([][]valEntry, bucketsCount)
-	} else if vals <= 2 {
+	if vals <= 2 {
 		ret.use1b = true
 		ret.bmp = make([]uint64, 1+(lines>>6))
 		ret.count = make([]int32, 2)
@@ -99,34 +93,12 @@ func (c *Column) workerSet() {
 	}
 }
 
-func (c *Column) SetEntrySet(id IDAcc, set []DataEntry, upd, async bool) {
-	if c.useset {
-		c.setCluster(id, 0, true)
-		for _, v := range set {
-			c.Set(id, v, upd, async)
-		}
-		return
-	}
-	panic("not useset")
-}
-
 func (c *Column) SetString(id IDAcc, v string, upd, async bool) {
 	if len(v) == 0 {
 		c.Set(id, c.empty, upd, async)
 	} else {
 		c.Set(id, DataEntry(c.dict.Put(v)), upd, async)
 	}
-}
-
-func (c *Column) SetStringSet(id IDAcc, v []string, upd, async bool) {
-	if c.useset {
-		c.setCluster(id, 0, true)
-		for _, vv := range v {
-			c.Set(id, DataEntry(c.dict.Put(vv)), upd, async)
-		}
-		return
-	}
-	panic("not useset")
 }
 
 func binSearchValEntry(a []valEntry, x byte) uint32 {
@@ -199,43 +171,12 @@ func binApproxSearchIDAcc(a []IDAcc, x IDAcc) uint32 {
 }
 
 func (c *Column) setCluster(id IDAcc, v DataEntry, clearset bool) {
-	if c.useset {
-		for uint32(len(c.clusterset)) <= uint32(id) {
-			c.clusterset = append(c.clusterset, make([]DataEntry, 0, 10))
-		}
-		if clearset {
-			a := c.clusterset[uint32(id)]
-			for _, oldv := range a {
-				bck, rem := remFunc(uint32(oldv))
-				cv := c.values[bck]
-				ln := len(cv)
-				ii := int(binSearchValEntry(cv, rem))
-				if ii < ln && cv[ii].rem == rem {
-					lnids := len(cv[ii].ids)
-					iids := int(binApproxSearchIDAcc(cv[ii].ids, id))
-					if iids < lnids && cv[ii].ids[iids] == id {
-						if iids < lnids-1 {
-							copy(cv[ii].ids[iids:], cv[ii].ids[iids+1:])
-						}
-						cv[ii].ids = cv[ii].ids[:lnids-1]
-					}
-					c.values[bck] = cv
-				}
-			}
-			if a == nil {
-				c.clusterset[uint32(id)] = make([]DataEntry, 0, 10)
-			} else {
-				c.clusterset[uint32(id)] = a[:0]
-			}
-		} else {
-			c.clusterset[uint32(id)] = append(c.clusterset[uint32(id)], v)
-		}
-	} else {
-		for uint32(len(c.cluster)) <= uint32(id) {
-			c.cluster = append(c.cluster, NullEntry)
-		}
-		c.cluster[uint32(id)] = v
+
+	for uint32(len(c.cluster)) <= uint32(id) {
+		c.cluster = append(c.cluster, NullEntry)
 	}
+	c.cluster[uint32(id)] = v
+
 }
 
 // нельзя вызывать для бинарных и сетов!
@@ -333,7 +274,7 @@ func (c *Column) Set(id IDAcc, v DataEntry, upd, async bool) {
 		if c.use1b || c.use2b || c.use4b {
 			oldv := c.Get(id)
 			c.count[oldv]--
-		} else if !c.useset {
+		} else {
 			oldv := c.Get(id)
 			if oldv != NullEntry {
 				if v == oldv {
@@ -368,18 +309,9 @@ func (c *Column) Get(id IDAcc) DataEntry {
 		pos, sub := id>>4, id&0x0f
 		mask := uint64(0x0f) << (sub * 4)
 		return DataEntry((c.bmp[pos] & mask) >> (sub * 4))
-	case c.useset:
-		panic("useset cannot get single")
 	default:
 		panic("unknown column for Get")
 	}
-}
-
-func (c *Column) GetSet(id IDAcc) []DataEntry {
-	if c.useset {
-		return c.clusterset[uint32(id)]
-	}
-	panic("not useset in GetSet")
 }
 
 func (c *Column) IsZero(v DataEntry) bool {
@@ -415,14 +347,6 @@ func (c *Column) GetString(id IDAcc) string {
 	return ""
 }
 
-func (c *Column) GetStringSet(id IDAcc) (ret []string) {
-	de := c.GetSet(id)
-	for _, v := range de {
-		ret = append(ret, c.dict.Get(uint32(v)))
-	}
-	return
-}
-
 func (c *Column) DictCardinality() int {
 	return c.dict.Length()
 }
@@ -439,9 +363,6 @@ func (c *Column) Contains(id IDAcc) bool {
 		pos, sub := id>>4, id&0x0f
 		mask := uint64(0x0f) << (sub * 4)
 		return DataEntry((c.bmp[pos]&mask)>>(sub*4)) != 0
-	case c.useset:
-		v := c.GetSet(id)
-		return len(v) != 0
 	default:
 		v := c.cluster[uint32(id)]
 		return !(v == NullEntry || v == c.empty)

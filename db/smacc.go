@@ -1,9 +1,7 @@
 package db
 
 import (
-	"github.com/covrom/highloadcup2018/dict"
 	"sync"
-	// _ "github.com/lib/pq"
 )
 
 var CurrentTime int32
@@ -47,50 +45,31 @@ type SmallAccounts struct {
 	StatusCountry *Column // country<<2|status
 	SexCity       *Column // city<<1|sex
 	SexCountry    *Column // country<<1|sex
-
-	dictLikes *DictLikes
-	likes     *LikeSlice // сорт. по убыванию Liker
-	liked     *LikeSlice // сорт. по убыванию Liked
 }
 
 func NewSmallAccounts(c int) *SmallAccounts {
-	dictLikes := NewDictLikes(50000000)
-	dictInterests := dict.NewDictonary(100)
-	emptyInterest := DataEntry(dictInterests.Put(""))
-
 	return &SmallAccounts{
 		accs: make([]SmallAccount, 0, c),
 		byid: make([]int32, 0, c),
 
-		dictLikes: dictLikes,
-		likes:     NewLikeSlice(dictLikes),
-		liked:     NewLikeSlice(dictLikes),
-
-		Domain:     NewColumnZeroString(1600000, 20, false, ""),
-		Sex:        NewColumnZeroDataEntry(1600000, 2, false, nil, 0),
-		FirstName:  NewColumnZeroString(1600000, 200, false, ""),
-		SecondName: NewColumnZeroString(1600000, 2000, false, ""),
-		Country:    NewColumnZeroString(1600000, 100, false, ""),
-		City:       NewColumnZeroString(1600000, 1000, false, ""),
-		PhoneCode:  NewColumnZeroString(1600000, 150, false, ""),
-		Status:     NewColumnZeroString(1600000, 3, false, ""),
-		BirthYear:  NewColumnZeroDataEntry(1600000, 50, false, nil, DataEntry(NullTime)),
-		JoinedYear: NewColumnZeroDataEntry(1600000, 50, false, nil, DataEntry(NullTime)),
-		Interests:  NewColumnZeroDataEntry(1600000, 100, true, dictInterests, emptyInterest),
-
-		StatusCity:               NewColumnZeroDataEntry(1600000, 4000, false, nil, 0),
-		StatusCountry:            NewColumnZeroDataEntry(1600000, 400, false, nil, 0),
-		SexCity:                  NewColumnZeroDataEntry(1600000, 2000, false, nil, 0),
-		SexCountry:               NewColumnZeroDataEntry(1600000, 200, false, nil, 0),
-		SexPremiumStatusInterest: NewColumnZeroDataEntry(1600000, 1600, true, nil, 0),
+		Domain:     NewColumnZeroString(1600000, 20, ""),
+		Sex:        NewColumnZeroDataEntry(1600000, 2, nil, 0),
+		FirstName:  NewColumnZeroString(1600000, 200, ""),
+		SecondName: NewColumnZeroString(1600000, 2000, ""),
+		Country:    NewColumnZeroString(1600000, 100, ""),
+		City:       NewColumnZeroString(1600000, 1000, ""),
+		PhoneCode:  NewColumnZeroString(1600000, 150, ""),
+		Status:     NewColumnZeroString(1600000, 3, ""),
+		BirthYear:  NewColumnZeroDataEntry(1600000, 50, nil, DataEntry(NullTime)),
+		JoinedYear: NewColumnZeroDataEntry(1600000, 50, nil, DataEntry(NullTime)),
 	}
 }
 
-func (ls *SmallAccounts) Append(acc SmallAccount, likes []Like) {
-	ls.Set(acc, likes)
+func (ls *SmallAccounts) Append(acc SmallAccount) {
+	ls.Set(acc)
 }
 
-func (sas *SmallAccounts) Set(acc SmallAccount, likes []Like) int32 {
+func (sas *SmallAccounts) Set(acc SmallAccount) int32 {
 	iid := int(acc.ID)
 	if iid < len(sas.byid) {
 		idx := sas.byid[iid]
@@ -98,15 +77,9 @@ func (sas *SmallAccounts) Set(acc SmallAccount, likes []Like) int32 {
 			idx = int32(len(sas.accs))
 			sas.accs = append(sas.accs, acc)
 			sas.byid[iid] = idx
-			for _, like := range likes {
-				sas.AddLike(like)
-			}
 			return idx
 		} else {
 			sas.accs[idx] = acc
-			for _, like := range likes {
-				sas.AddLike(like)
-			}
 			return idx
 		}
 	} else {
@@ -116,58 +89,8 @@ func (sas *SmallAccounts) Set(acc SmallAccount, likes []Like) int32 {
 		idx := int32(len(sas.accs))
 		sas.accs = append(sas.accs, acc)
 		sas.byid[iid] = idx
-		for _, like := range likes {
-			sas.AddLike(like)
-		}
 		return idx
 	}
-}
-
-func (sas *SmallAccounts) GetLikeLiker(v DictLikeIndex) IDAcc {
-	return sas.dictLikes.GetLiker(v)
-}
-
-func (sas *SmallAccounts) GetLikeLiked(v DictLikeIndex) IDAcc {
-	return sas.dictLikes.GetLiked(v)
-}
-
-func (sas *SmallAccounts) GetLikeStamp(v DictLikeIndex) int32 {
-	return sas.dictLikes.GetLikeStamp(v)
-}
-
-func (sas *SmallAccounts) GetLike(v DictLikeIndex) Like {
-	return sas.dictLikes.Get(v)
-}
-
-func (sas *SmallAccounts) LikesDict(id IDAcc) []DictLikeIndex {
-	return sas.likes.Likes(id)
-}
-
-func (sas *SmallAccounts) Likes(id IDAcc) (res []Like) {
-	didxs := sas.likes.Likes(id)
-	res = GetLikesSlice(len(didxs))
-	for _, v := range didxs {
-		res = append(res, sas.dictLikes.Get(v))
-	}
-	return
-}
-
-func (sas *SmallAccounts) LikedDict(id IDAcc) []DictLikeIndex {
-	return sas.liked.Liked(id)
-}
-
-func (sas *SmallAccounts) Liked(id IDAcc) (res []Like) {
-	didxs := sas.liked.Liked(id)
-	res = GetLikesSlice(len(didxs))
-	for _, v := range didxs {
-		res = append(res, sas.dictLikes.Get(v))
-	}
-	return
-}
-
-func (sas *SmallAccounts) AddLike(like Like) {
-	didx := <-sas.likes.AddLikes(like, -1)
-	<-sas.liked.AddLiked(like, didx)
 }
 
 func (sas *SmallAccounts) Contains(id IDAcc) bool {
