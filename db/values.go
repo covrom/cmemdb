@@ -6,21 +6,36 @@ import (
 	"time"
 )
 
-var NullTime int32
+type IDEntry uint32
 
-type IDAccount []byte
+func (id IDEntry) MarshalJSON() ([]byte, error) {
+	return []byte(strconv.FormatUint(uint64(id), 10)), nil
+}
 
-func (idacc IDAccount) Int() IDAcc {
+func (id *IDEntry) UnmarshalJSON(data []byte) error {
+	i, err := strconv.ParseUint(string(data), 10, 32)
+	if err != nil {
+		return err
+	}
+	*id = IDEntry(i)
+	return nil
+}
+
+type IDEntryBytes []byte
+
+func (id IDEntryBytes) Int() IDEntry {
 	var us uint64
-	for _, digit := range idacc {
+	for _, digit := range id {
 		d := digit - '0'
 		if d > 9 {
 			break
 		}
 		us = us*10 + uint64(d)
 	}
-	return IDAcc(us)
+	return IDEntry(us)
 }
+
+var NullTime int32
 
 type TimeStamp []byte
 
@@ -71,19 +86,4 @@ func (ts TimeStamp) MarshalJSON() ([]byte, error) {
 func (ts *TimeStamp) UnmarshalJSON(data []byte) error {
 	*ts = TimeStamp(data)
 	return ts.Validate()
-}
-
-type IDAcc uint32
-
-func (id IDAcc) MarshalJSON() ([]byte, error) {
-	return []byte(strconv.FormatUint(uint64(id), 10)), nil
-}
-
-func (id *IDAcc) UnmarshalJSON(data []byte) error {
-	i, err := strconv.ParseUint(string(data), 10, 32)
-	if err != nil {
-		return err
-	}
-	*id = IDAcc(i)
-	return nil
 }

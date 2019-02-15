@@ -6,9 +6,9 @@ import (
 
 type IDIterator interface {
 	HasNext() bool
-	NextID() IDAcc
-	JumpTo(IDAcc) bool // результат как у HasNext
-	Range() (IDAcc, IDAcc)
+	NextID() IDEntry
+	JumpTo(IDEntry) bool // результат как у HasNext
+	Range() (IDEntry, IDEntry)
 	Cardinality() int32
 	Reversed() bool
 	Clone() IDIterator
@@ -45,7 +45,7 @@ func (c *Column) Iterator(reverse bool, useFilter bool, filterVal DataEntry, fil
 }
 
 // filter должен быть отсортирован по возрастанию
-func (c *Column) IteratorWithFilterId(filter []IDAcc, reverse bool) IDIterator {
+func (c *Column) IteratorWithFilterId(filter []IDEntry, reverse bool) IDIterator {
 	if reverse {
 		return &RangeIterator{
 			pos:    int32(len(filter)),
@@ -67,7 +67,7 @@ func (c *Column) IteratorWithFilterId(filter []IDAcc, reverse bool) IDIterator {
 	}
 }
 
-func IteratorByIds(filter []IDAcc, reverse bool) IDIterator {
+func IteratorByIds(filter []IDEntry, reverse bool) IDIterator {
 	if reverse {
 		return &RangeIterator{
 			pos:    int32(len(filter)),
@@ -111,7 +111,7 @@ type ColumnIterator struct {
 	useFilter  bool
 	filterVal  DataEntry
 	filterNEQ  bool
-	lastJumpTo IDAcc
+	lastJumpTo IDEntry
 	lastJumpOk bool
 }
 
@@ -129,15 +129,15 @@ func (iter *ColumnIterator) Reversed() bool {
 	return iter.grow < 0
 }
 
-func (iter *ColumnIterator) Range() (IDAcc, IDAcc) {
-	a, b := IDAcc(iter.minpos), IDAcc(iter.maxpos)
+func (iter *ColumnIterator) Range() (IDEntry, IDEntry) {
+	a, b := IDEntry(iter.minpos), IDEntry(iter.maxpos)
 	if a > b {
 		a, b = b, a
 	}
 	return a, b
 }
 
-func (iter *ColumnIterator) JumpTo(id IDAcc) bool {
+func (iter *ColumnIterator) JumpTo(id IDEntry) bool {
 	if iter.lastJumpTo == id {
 		return iter.lastJumpOk
 	}
@@ -242,7 +242,7 @@ func (iter *ColumnIterator) HasNext() bool {
 				}
 			} else {
 				for {
-					v := iter.col.Get(IDAcc(ipos))
+					v := iter.col.Get(IDEntry(ipos))
 					if ifneq && v != ifv && v != NullEntry && v != iempty {
 						break
 					}
@@ -256,19 +256,10 @@ func (iter *ColumnIterator) HasNext() bool {
 				}
 			}
 		} else {
-			if iter.use1b {
-				for !SmAcc.Contains(IDAcc(ipos)) {
-					ipos += igrow
-					if ipos < imin || ipos > imax {
-						break
-					}
-				}
-			} else {
-				for !iter.col.Contains(IDAcc(ipos)) {
-					ipos += igrow
-					if ipos < imin || ipos > imax {
-						break
-					}
+			for !iter.col.Contains(IDEntry(ipos)) {
+				ipos += igrow
+				if ipos < imin || ipos > imax {
+					break
 				}
 			}
 		}
@@ -277,8 +268,8 @@ func (iter *ColumnIterator) HasNext() bool {
 	return ipos >= imin && ipos <= imax
 }
 
-func (iter *ColumnIterator) NextID() IDAcc {
-	return IDAcc(iter.pos)
+func (iter *ColumnIterator) NextID() IDEntry {
+	return IDEntry(iter.pos)
 }
 
 type RangeIterator struct {
@@ -287,8 +278,8 @@ type RangeIterator struct {
 	maxpos     int32
 	minpos     int32
 	col        *Column
-	filter     []IDAcc
-	lastJumpTo IDAcc
+	filter     []IDEntry
+	lastJumpTo IDEntry
 	lastJumpOk bool
 }
 
@@ -306,7 +297,7 @@ func (iter *RangeIterator) Reversed() bool {
 	return iter.grow < 0
 }
 
-func (iter *RangeIterator) Range() (IDAcc, IDAcc) {
+func (iter *RangeIterator) Range() (IDEntry, IDEntry) {
 	if iter.maxpos < 0 {
 		return 0, 0
 	}
@@ -317,7 +308,7 @@ func (iter *RangeIterator) Range() (IDAcc, IDAcc) {
 	return a, b
 }
 
-func (iter *RangeIterator) JumpTo(id IDAcc) bool {
+func (iter *RangeIterator) JumpTo(id IDEntry) bool {
 	if iter.maxpos < 0 {
 		return false
 	}
@@ -430,7 +421,7 @@ func (iter *RangeIterator) HasNext() bool {
 	return iter.pos >= iter.minpos && iter.pos <= iter.maxpos
 }
 
-func (iter *RangeIterator) NextID() IDAcc {
+func (iter *RangeIterator) NextID() IDEntry {
 	if iter.pos >= iter.minpos && iter.pos <= iter.maxpos {
 		return iter.filter[iter.pos]
 	}
@@ -441,9 +432,9 @@ type IntersectIterator struct {
 	// сортирован по увеличению длины, последний итератор - самый длинный
 	iterators    []IDIterator
 	iterdiffs    []IDIterator
-	currid       IDAcc
+	currid       IDEntry
 	reversed     bool //у всех iterators он дожен быть такой же
-	lastJumpTo   IDAcc
+	lastJumpTo   IDEntry
 	lastJumpOk   bool
 	notIntersect bool
 }
@@ -540,7 +531,7 @@ func (iter *IntersectIterator) IterDiff(n int) IDIterator {
 	return iter.iterdiffs[n]
 }
 
-func (iter *IntersectIterator) JumpTo(id IDAcc) bool {
+func (iter *IntersectIterator) JumpTo(id IDEntry) bool {
 	if iter.lastJumpTo == id {
 		return iter.lastJumpOk
 	}
@@ -591,7 +582,7 @@ func (iter *IntersectIterator) Cardinality() int32 {
 	return iter.iterators[0].Cardinality()
 }
 
-func (iter *IntersectIterator) Range() (IDAcc, IDAcc) {
+func (iter *IntersectIterator) Range() (IDEntry, IDEntry) {
 	return iter.iterators[0].Range()
 }
 
@@ -671,19 +662,19 @@ retry:
 	return iidx >= len(iter.iterators)
 }
 
-func (iter *IntersectIterator) NextID() IDAcc {
+func (iter *IntersectIterator) NextID() IDEntry {
 	return iter.currid
 }
 
 type MergeIterator struct {
 	// сортирован по увеличению длины, последний итератор - самый длинный
 	iterators   []IDIterator
-	currid      IDAcc
-	minheap     *IDAccHeap
+	currid      IDEntry
+	minheap     *IDEntryHeap
 	cardinality int32
 	reversed    bool //у всех iterators он дожен быть такой же
-	min, max    IDAcc
-	lastJumpTo  IDAcc
+	min, max    IDEntry
+	lastJumpTo  IDEntry
 	lastJumpOk  bool
 }
 
@@ -693,10 +684,10 @@ func NewMergeIterator(iterators ...IDIterator) *MergeIterator {
 	}
 
 	reversed := iterators[0].Reversed()
-	h := NewIDAccHeap(reversed, len(iterators))
-	InitIDAccHeap(h)
+	h := NewIDEntryHeap(reversed, len(iterators))
+	InitIDEntryHeap(h)
 	maxSz := int32(0)
-	var l, r IDAcc
+	var l, r IDEntry
 
 	for i, it := range iterators {
 		if it == nil {
@@ -717,7 +708,7 @@ func NewMergeIterator(iterators ...IDIterator) *MergeIterator {
 			maxSz = lenList
 		}
 		if it.HasNext() {
-			PushIDAccHeap(h, ElemHeapIDAcc{
+			PushIDEntryHeap(h, ElemHeapIDEntry{
 				ID:       it.NextID(),
 				Iterator: it,
 			})
@@ -746,7 +737,7 @@ func (iter *MergeIterator) Clone() IDIterator {
 	return rv
 }
 
-func (iter *MergeIterator) JumpTo(id IDAcc) bool {
+func (iter *MergeIterator) JumpTo(id IDEntry) bool {
 	if iter.lastJumpTo == id {
 		return iter.lastJumpOk
 	}
@@ -763,7 +754,7 @@ func (iter *MergeIterator) JumpTo(id IDAcc) bool {
 		cok := it.JumpTo(id)
 		ok = ok || cok
 		if cok {
-			PushIDAccHeap(iter.minheap, ElemHeapIDAcc{
+			PushIDEntryHeap(iter.minheap, ElemHeapIDEntry{
 				ID:       it.NextID(),
 				Iterator: it,
 			})
@@ -782,7 +773,7 @@ func (iter *MergeIterator) Cardinality() int32 {
 	return iter.cardinality
 }
 
-func (iter *MergeIterator) Range() (l IDAcc, r IDAcc) {
+func (iter *MergeIterator) Range() (l IDEntry, r IDEntry) {
 	return iter.min, iter.max
 }
 
@@ -798,16 +789,16 @@ func (iter *MergeIterator) HasNext() bool {
 			return true
 		}
 		if !me.Iterator.HasNext() {
-			PopIDAccHeap(iter.minheap)
+			PopIDEntryHeap(iter.minheap)
 		} else {
 			val := me.Iterator.NextID()
 			iter.minheap.Elems[0].ID = val
-			FixIDAccHeap(iter.minheap, 0) // Faster than Pop() followed by Push().
+			FixIDEntryHeap(iter.minheap, 0) // Faster than Pop() followed by Push().
 		}
 	}
 	return false
 }
 
-func (iter *MergeIterator) NextID() IDAcc {
+func (iter *MergeIterator) NextID() IDEntry {
 	return iter.currid
 }

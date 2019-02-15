@@ -1,20 +1,19 @@
 package db
 
 import (
-	"strings"
 	"sync"
 )
 
 type Dictonary struct {
 	sync.RWMutex
-	mm map[string]uint32
-	ms []string
+	mm map[ColumnValue]uint32
+	ms []ColumnValue
 }
 
 func NewDictonary(c int) *Dictonary {
 	return &Dictonary{
-		mm: make(map[string]uint32, c),
-		ms: make([]string, 0, c),
+		mm: make(map[ColumnValue]uint32, c),
+		ms: make([]ColumnValue, 0, c),
 	}
 }
 
@@ -25,7 +24,7 @@ func (ld *Dictonary) Length() int {
 	return l
 }
 
-func (ld *Dictonary) Put(b string) uint32 {
+func (ld *Dictonary) Put(b ColumnValue) uint32 {
 	ld.Lock()
 	if i, ok := ld.mm[b]; ok {
 		ld.Unlock()
@@ -38,7 +37,7 @@ func (ld *Dictonary) Put(b string) uint32 {
 	return uint32(i)
 }
 
-func (ld *Dictonary) In(b string) (uint32, bool) {
+func (ld *Dictonary) In(b ColumnValue) (uint32, bool) {
 	ld.RLock()
 	if i, ok := ld.mm[b]; ok {
 		ld.RUnlock()
@@ -48,16 +47,16 @@ func (ld *Dictonary) In(b string) (uint32, bool) {
 	return 0, false
 }
 
-func (ld *Dictonary) Get(n uint32) string {
+func (ld *Dictonary) Get(n uint32) ColumnValue {
 	ld.RLock()
 	if int(n) < len(ld.ms) {
 		ld.RUnlock()
 		return ld.ms[int(n)]
 	}
 	ld.RUnlock()
-	return ""
+	return nil
 }
 
 func (ld *Dictonary) Compare(x, y uint32) int {
-	return strings.Compare(ld.Get(x), ld.Get(y))
+	return ld.Get(x).Compare(ld.Get(y))
 }

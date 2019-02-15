@@ -1,26 +1,26 @@
 package db
 
-type ElemHeapIDAcc struct {
-	ID       IDAcc      // Value of this element.
+type ElemHeapIDEntry struct {
+	ID       IDEntry      // Value of this element.
 	Iterator IDIterator // Which list this element comes from.
 }
 
-type IDAccHeap struct {
+type IDEntryHeap struct {
 	reverse bool
-	Elems   []ElemHeapIDAcc
+	Elems   []ElemHeapIDEntry
 }
 
-func NewIDAccHeap(reverse bool, capacity int) *IDAccHeap {
-	return &IDAccHeap{
+func NewIDEntryHeap(reverse bool, capacity int) *IDEntryHeap {
+	return &IDEntryHeap{
 		reverse: reverse,
-		Elems:   make([]ElemHeapIDAcc, 0, capacity),
+		Elems:   make([]ElemHeapIDEntry, 0, capacity),
 	}
 }
 
-func (h *IDAccHeap) Clone() *IDAccHeap {
-	rv := NewIDAccHeap(h.reverse, cap(h.Elems))
+func (h *IDEntryHeap) Clone() *IDEntryHeap {
+	rv := NewIDEntryHeap(h.reverse, cap(h.Elems))
 	for _, el := range h.Elems {
-		v := ElemHeapIDAcc{
+		v := ElemHeapIDEntry{
 			ID:       el.ID,
 			Iterator: el.Iterator.Clone(),
 		}
@@ -29,20 +29,20 @@ func (h *IDAccHeap) Clone() *IDAccHeap {
 	return rv
 }
 
-func (h *IDAccHeap) Len() int { return len(h.Elems) }
-func (h *IDAccHeap) Less(i, j int) bool {
+func (h *IDEntryHeap) Len() int { return len(h.Elems) }
+func (h *IDEntryHeap) Less(i, j int) bool {
 	if h.reverse {
 		return h.Elems[i].ID > h.Elems[j].ID
 	} else {
 		return h.Elems[i].ID < h.Elems[j].ID
 	}
 }
-func (h *IDAccHeap) Swap(i, j int) { h.Elems[i], h.Elems[j] = h.Elems[j], h.Elems[i] }
-func (h *IDAccHeap) Push(x ElemHeapIDAcc) {
+func (h *IDEntryHeap) Swap(i, j int) { h.Elems[i], h.Elems[j] = h.Elems[j], h.Elems[i] }
+func (h *IDEntryHeap) Push(x ElemHeapIDEntry) {
 	h.Elems = append(h.Elems, x)
 }
 
-func (h *IDAccHeap) Pop() ElemHeapIDAcc {
+func (h *IDEntryHeap) Pop() ElemHeapIDEntry {
 	old := h.Elems
 	n := len(old)
 	x := old[n-1]
@@ -50,43 +50,43 @@ func (h *IDAccHeap) Pop() ElemHeapIDAcc {
 	return x
 }
 
-func InitIDAccHeap(h *IDAccHeap) {
+func InitIDEntryHeap(h *IDEntryHeap) {
 	n := h.Len()
 	for i := n/2 - 1; i >= 0; i-- {
-		downIDAccHeap(h, i, n)
+		downIDEntryHeap(h, i, n)
 	}
 }
 
-func PushIDAccHeap(h *IDAccHeap, x ElemHeapIDAcc) {
+func PushIDEntryHeap(h *IDEntryHeap, x ElemHeapIDEntry) {
 	h.Push(x)
-	upIDAccHeap(h, h.Len()-1)
+	upIDEntryHeap(h, h.Len()-1)
 }
 
-func PopIDAccHeap(h *IDAccHeap) ElemHeapIDAcc {
+func PopIDEntryHeap(h *IDEntryHeap) ElemHeapIDEntry {
 	n := h.Len() - 1
 	h.Swap(0, n)
-	downIDAccHeap(h, 0, n)
+	downIDEntryHeap(h, 0, n)
 	return h.Pop()
 }
 
-func RemoveIDAccHeap(h *IDAccHeap, i int) ElemHeapIDAcc {
+func RemoveIDEntryHeap(h *IDEntryHeap, i int) ElemHeapIDEntry {
 	n := h.Len() - 1
 	if n != i {
 		h.Swap(i, n)
-		if !downIDAccHeap(h, i, n) {
-			upIDAccHeap(h, i)
+		if !downIDEntryHeap(h, i, n) {
+			upIDEntryHeap(h, i)
 		}
 	}
 	return h.Pop()
 }
 
-func FixIDAccHeap(h *IDAccHeap, i int) {
-	if !downIDAccHeap(h, i, h.Len()) {
-		upIDAccHeap(h, i)
+func FixIDEntryHeap(h *IDEntryHeap, i int) {
+	if !downIDEntryHeap(h, i, h.Len()) {
+		upIDEntryHeap(h, i)
 	}
 }
 
-func upIDAccHeap(h *IDAccHeap, j int) {
+func upIDEntryHeap(h *IDEntryHeap, j int) {
 	for {
 		i := (j - 1) / 2 // parent
 		if i == j || !h.Less(j, i) {
@@ -97,7 +97,7 @@ func upIDAccHeap(h *IDAccHeap, j int) {
 	}
 }
 
-func downIDAccHeap(h *IDAccHeap, i0, n int) bool {
+func downIDEntryHeap(h *IDEntryHeap, i0, n int) bool {
 	i := i0
 	for {
 		j1 := 2*i + 1

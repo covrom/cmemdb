@@ -16,11 +16,11 @@ func valFunc(b uint16, h byte) uint32 { return (uint32(h) << 16) | uint32(b) }
 
 type valEntry struct {
 	rem byte
-	ids []IDAcc
+	ids []IDEntry
 }
 
 type kvSet struct {
-	id  IDAcc
+	id  IDEntry
 	val DataEntry
 }
 
@@ -46,15 +46,15 @@ type Column struct {
 	bmp    []uint64 // биткарта
 	count  []int32  // количества по idx=val
 
-	minId IDAcc
-	maxId IDAcc
+	minId IDEntry
+	maxId IDEntry
 
 	empty DataEntry // для use1b Contains работает просто как проверка границ, для остальных - проверяет на это пустое значение
 
 	chset chan kvSet
 }
 
-func NewColumnZeroString(lines, vals int, zeroval string) *Column {
+func NewColumnZeroVal(lines, vals int, zeroval ColumnValue) *Column {
 	dct := NewDictonary(vals)
 	return NewColumnZeroDataEntry(lines, vals, dct, DataEntry(dct.Put(zeroval)))
 }
@@ -93,8 +93,8 @@ func (c *Column) workerSet() {
 	}
 }
 
-func (c *Column) SetString(id IDAcc, v string, upd, async bool) {
-	if len(v) == 0 {
+func (c *Column) SetVal(id IDEntry, v ColumnValue, upd, async bool) {
+	if v == nil {
 		c.Set(id, c.empty, upd, async)
 	} else {
 		c.Set(id, DataEntry(c.dict.Put(v)), upd, async)
@@ -115,7 +115,7 @@ func binSearchValEntry(a []valEntry, x byte) uint32 {
 	return i
 }
 
-func binSearchIDAcc(a []IDAcc, x IDAcc) uint32 {
+func binSearchIDEntry(a []IDEntry, x IDEntry) uint32 {
 	n := uint32(len(a))
 	i, j := uint32(0), n
 	for i < j {
@@ -129,7 +129,7 @@ func binSearchIDAcc(a []IDAcc, x IDAcc) uint32 {
 	return i
 }
 
-func binApproxSearchIDAcc(a []IDAcc, x IDAcc) uint32 {
+func binApproxSearchIDEntry(a []IDEntry, x IDEntry) uint32 {
 	n := uint32(len(a))
 	if n == 0 {
 		return 0
@@ -170,7 +170,7 @@ func binApproxSearchIDAcc(a []IDAcc, x IDAcc) uint32 {
 	return i
 }
 
-func (c *Column) setCluster(id IDAcc, v DataEntry, clearset bool) {
+func (c *Column) setCluster(id IDEntry, v DataEntry, clearset bool) {
 
 	for uint32(len(c.cluster)) <= uint32(id) {
 		c.cluster = append(c.cluster, NullEntry)
@@ -180,14 +180,14 @@ func (c *Column) setCluster(id IDAcc, v DataEntry, clearset bool) {
 }
 
 // нельзя вызывать для бинарных и сетов!
-func (c *Column) Delete(id IDAcc, oldv DataEntry) {
+func (c *Column) Delete(id IDEntry, oldv DataEntry) {
 	bck, rem := remFunc(uint32(oldv))
 	cv := c.values[bck]
 	ln := len(cv)
 	ii := int(binSearchValEntry(cv, rem))
 	if ii < ln && cv[ii].rem == rem {
 		lnids := len(cv[ii].ids)
-		iids := int(binApproxSearchIDAcc(cv[ii].ids, id))
+		iids := int(binApproxSearchIDEntry(cv[ii].ids, id))
 		if iids < lnids && cv[ii].ids[iids] == id {
 			if iids < lnids-1 {
 				copy(cv[ii].ids[iids:], cv[ii].ids[iids+1:])
@@ -199,7 +199,7 @@ func (c *Column) Delete(id IDAcc, oldv DataEntry) {
 	}
 }
 
-func (c *Column) set(id IDAcc, v DataEntry) {
+func (c *Column) set(id IDEntry, v DataEntry) {
 	if c.maxId < id {
 		c.maxId = id
 	}
@@ -241,7 +241,7 @@ func (c *Column) set(id IDAcc, v DataEntry) {
 	if ii < ln && cv[ii].rem == rem {
 		// уже есть значение - пробуем добавить ID
 		lnids := len(cv[ii].ids)
-		iids := int(binApproxSearchIDAcc(cv[ii].ids, id))
+		iids := int(binApproxSearchIDEntry(cv[ii].ids, id))
 		// если уже есть - не добавляем
 		if !(iids < lnids && cv[ii].ids[iids] == id) {
 			cv[ii].ids = append(cv[ii].ids, id)
@@ -253,13 +253,13 @@ func (c *Column) set(id IDAcc, v DataEntry) {
 	} else {
 		cv = append(cv, valEntry{
 			rem: rem,
-			ids: []IDAcc{id},
+			ids: []IDEntry{id},
 		})
 		if ii < ln {
 			copy(cv[ii+1:], cv[ii:])
 			cv[ii] = valEntry{
 				rem: rem,
-				ids: []IDAcc{id},
+				ids: []IDEntry{id},
 			}
 		}
 	}
@@ -269,7 +269,7 @@ func (c *Column) set(id IDAcc, v DataEntry) {
 	c.setCluster(id, v, false)
 }
 
-func (c *Column) Set(id IDAcc, v DataEntry, upd, async bool) {
+func (c *Column) Set(id IDEntry, v DataEntry, upd, async bool) {
 	if upd {
 		if c.use1b || c.use2b || c.use4b {
 			oldv := c.Get(id)
@@ -293,7 +293,7 @@ func (c *Column) Set(id IDAcc, v DataEntry, upd, async bool) {
 	}
 }
 
-func (c *Column) Get(id IDAcc) DataEntry {
+func (c *Column) Get(id IDEntry) DataEntry {
 	switch {
 	case c.useval:
 		return c.cluster[uint32(id)]
@@ -322,16 +322,16 @@ func (c *Column) ZeroVal() DataEntry {
 	return c.empty
 }
 
-func (c *Column) ToDictonary(s string) DataEntry {
+func (c *Column) ToDictonary(s ColumnValue) DataEntry {
 	return DataEntry(c.dict.Put(s))
 }
 
-func (c *Column) InDictonary(s string) (DataEntry, bool) {
+func (c *Column) InDictonary(s ColumnValue) (DataEntry, bool) {
 	i, ok := c.dict.In(s)
 	return DataEntry(i), ok
 }
 
-func (c *Column) FromDictonary(idx DataEntry) string {
+func (c *Column) FromDictonary(idx DataEntry) ColumnValue {
 	return c.dict.Get(uint32(idx))
 }
 
@@ -339,19 +339,19 @@ func (c *Column) DictonaryCompare(x, y DataEntry) int {
 	return c.dict.Compare(uint32(x), uint32(y))
 }
 
-func (c *Column) GetString(id IDAcc) string {
+func (c *Column) GetVal(id IDEntry) ColumnValue {
 	de := c.Get(id)
 	if de != NullEntry {
 		return c.dict.Get(uint32(de))
 	}
-	return ""
+	return nil
 }
 
 func (c *Column) DictCardinality() int {
 	return c.dict.Length()
 }
 
-func (c *Column) Contains(id IDAcc) bool {
+func (c *Column) Contains(id IDEntry) bool {
 	switch {
 	case c.use1b:
 		return int(id>>6) < len(c.bmp)
@@ -369,7 +369,7 @@ func (c *Column) Contains(id IDAcc) bool {
 	}
 }
 
-func (c *Column) GetV(v DataEntry) []IDAcc {
+func (c *Column) GetV(v DataEntry) []IDEntry {
 	if c.use1b || c.use2b || c.use4b {
 		panic("GetV is not defined for bitmap columns")
 	}
@@ -390,7 +390,7 @@ func (c *Column) GetCountV(v DataEntry) int32 {
 	return int32(len(c.GetV(v)))
 }
 
-func (c *Column) RangeVals(f func(v DataEntry, ids []IDAcc)) {
+func (c *Column) RangeVals(f func(v DataEntry, ids []IDEntry)) {
 	if c.use1b || c.use2b || c.use4b {
 		panic("RangeVals is not defined for bitmap columns")
 	} else {

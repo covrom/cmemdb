@@ -1,8 +1,7 @@
 package db
 
 type ColumnValue interface {
-	Eq(ColumnValue) bool
-	Lt(ColumnValue) bool
+	Compare(ColumnValue) int
 }
 
 type ColumnType struct {
