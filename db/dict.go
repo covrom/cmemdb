@@ -6,6 +6,8 @@ import (
 
 type Dictonary struct {
 	sync.RWMutex
+
+	// FIXME: переделать на другой вариант, например, чанки, чтобы быстро находить значение
 	mm map[ColumnValue]uint32
 	ms []ColumnValue
 }
