@@ -7,7 +7,6 @@ import (
 type Dictonary struct {
 	sync.RWMutex
 
-	// FIXME: переделать на другой вариант, например, чанки, чтобы быстро находить значение
 	mm map[ColumnValue]uint32
 	ms []ColumnValue
 }
@@ -61,4 +60,17 @@ func (ld *Dictonary) Get(n uint32) ColumnValue {
 
 func (ld *Dictonary) Compare(x, y uint32) int {
 	return ld.Get(x).Compare(ld.Get(y))
+}
+
+func (ld *Dictonary) Delete(n uint32) {
+	ld.Lock()
+	ln := len(ld.ms)
+	if n < uint32(ln) {
+		b := ld.ms[n]
+		if b != nil {
+			ld.ms[n] = nil
+			delete(ld.mm, b)
+		}
+	}
+	ld.Unlock()
 }
