@@ -28,20 +28,20 @@ func (c *Column) Iterator(reverse bool, useFilter bool, filterVal DataEntry, fil
 			filterVal: filterVal,
 			filterNEQ: filterNEQ,
 		}
-	} else {
-		return &ColumnIterator{
-			pos:       int32(c.minId) - 1,
-			grow:      1,
-			col:       c,
-			use1b:     c.use1b,
-			use2b:     c.use2b,
-			maxpos:    int32(c.maxId),
-			minpos:    int32(c.minId),
-			useFilter: useFilter,
-			filterVal: filterVal,
-			filterNEQ: filterNEQ,
-		}
 	}
+	return &ColumnIterator{
+		pos:       int32(c.minId) - 1,
+		grow:      1,
+		col:       c,
+		use1b:     c.use1b,
+		use2b:     c.use2b,
+		maxpos:    int32(c.maxId),
+		minpos:    int32(c.minId),
+		useFilter: useFilter,
+		filterVal: filterVal,
+		filterNEQ: filterNEQ,
+	}
+
 }
 
 // filter должен быть отсортирован по возрастанию
@@ -55,16 +55,16 @@ func (c *Column) IteratorWithFilterId(filter []IDEntry, reverse bool) IDIterator
 			minpos: 0,
 			filter: filter,
 		}
-	} else {
-		return &RangeIterator{
-			pos:    -1,
-			grow:   1,
-			col:    c,
-			maxpos: int32(len(filter)) - 1,
-			minpos: 0,
-			filter: filter,
-		}
 	}
+	return &RangeIterator{
+		pos:    -1,
+		grow:   1,
+		col:    c,
+		maxpos: int32(len(filter)) - 1,
+		minpos: 0,
+		filter: filter,
+	}
+
 }
 
 func IteratorByIds(filter []IDEntry, reverse bool) IDIterator {
@@ -77,16 +77,16 @@ func IteratorByIds(filter []IDEntry, reverse bool) IDIterator {
 			minpos: 0,
 			filter: filter,
 		}
-	} else {
-		return &RangeIterator{
-			pos:    -1,
-			grow:   1,
-			col:    nil,
-			maxpos: int32(len(filter)) - 1,
-			minpos: 0,
-			filter: filter,
-		}
 	}
+	return &RangeIterator{
+		pos:    -1,
+		grow:   1,
+		col:    nil,
+		maxpos: int32(len(filter)) - 1,
+		minpos: 0,
+		filter: filter,
+	}
+
 }
 
 func (c *Column) IteratorWithFilterVal(filter DataEntry, reverse, noneq bool) (ret IDIterator) {

@@ -29,22 +29,21 @@ type Column struct {
 	// кластерный индекс, сортирован в порядке возрастания ключа (ID)
 	// индекс коллекции - это ID
 	// могут быть пропуски ID, в них DataEntry==empty
-	cluster    []DataEntry
-	clusterset [][]DataEntry
+	cluster []DataEntry
 	// индекс, по значению (DataEntry), отсортирован только в рамках одного bucket
 	// все одинаковые значения находятся в одном bucket
 	// позволяет быстро найти по значению все ID, отсортированные по возрастанию
 	// индекс коллекции - значение DataEntry
 	values [][]valEntry
+	bmp    []uint64 // биткарта
+	count  []int32  // количества по idx=val
 
 	dict *Dictonary
 
 	useval bool
-	use1b  bool     // биткарта, 1 бит на значение
-	use2b  bool     // биткарта, 2 бит на значение
-	use4b  bool     // биткарта, 4 бит на значение
-	bmp    []uint64 // биткарта
-	count  []int32  // количества по idx=val
+	use1b  bool // биткарта, 1 бит на значение
+	use2b  bool // биткарта, 2 бит на значение
+	use4b  bool // биткарта, 4 бит на значение
 
 	minId IDEntry
 	maxId IDEntry
@@ -107,20 +106,6 @@ func binSearchValEntry(a []valEntry, x byte) uint32 {
 	for i < j {
 		h := (i + j) >> 1
 		if a[h].rem < x {
-			i = h + 1
-		} else {
-			j = h
-		}
-	}
-	return i
-}
-
-func binSearchIDEntry(a []IDEntry, x IDEntry) uint32 {
-	n := uint32(len(a))
-	i, j := uint32(0), n
-	for i < j {
-		h := (i + j) >> 1
-		if a[h] < x {
 			i = h + 1
 		} else {
 			j = h
