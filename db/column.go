@@ -156,15 +156,13 @@ func binApproxSearchIDEntry(a []IDEntry, x IDEntry) uint32 {
 }
 
 func (c *Column) setCluster(id IDEntry, v DataEntry, clearset bool) {
-
 	for uint32(len(c.cluster)) <= uint32(id) {
 		c.cluster = append(c.cluster, NullEntry)
 	}
 	c.cluster[uint32(id)] = v
-
 }
 
-// нельзя вызывать для бинарных и сетов!
+// нельзя вызывать для бинарных!
 func (c *Column) Delete(id IDEntry, oldv DataEntry) {
 	bck, rem := remFunc(uint32(oldv))
 	cv := c.values[bck]
@@ -250,7 +248,6 @@ func (c *Column) set(id IDEntry, v DataEntry) {
 	}
 	c.values[bck] = cv
 
-	// для useset всегда добавляем
 	c.setCluster(id, v, false)
 }
 

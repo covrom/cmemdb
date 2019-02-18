@@ -17,3 +17,8 @@ type DataTable struct {
 	Metadata []*ColumnType
 	Columns  []*Column
 }
+
+func (dt *DataTable) AddColumn(ct *ColumnType) {
+	dt.Metadata = append(dt.Metadata, ct)
+	dt.Columns = append(dt.Columns, NewColumnZeroVal(ct.Lines, ct.UniqueValues, ct.ZeroValue))
+}
