@@ -314,17 +314,17 @@ func (c *Column) InDictonary(s ColumnValue) (DataEntry, bool) {
 }
 
 func (c *Column) FromDictonary(idx DataEntry) ColumnValue {
-	return c.dict.Get(uint32(idx))
+	return c.dict.Get(DictIndex(idx))
 }
 
 func (c *Column) DictonaryCompare(x, y DataEntry) int {
-	return c.dict.Compare(uint32(x), uint32(y))
+	return c.dict.Compare(DictIndex(x), DictIndex(y))
 }
 
 func (c *Column) GetVal(id IDEntry) ColumnValue {
 	de := c.Get(id)
 	if de != NullEntry {
-		return c.dict.Get(uint32(de))
+		return c.dict.Get(DictIndex(de))
 	}
 	return nil
 }

@@ -37,6 +37,11 @@ func (id IDEntryBytes) Int() IDEntry {
 
 var NullTime int32
 
+func init() {
+	zt, _ := time.Parse(time.RFC3339, "1949-12-31T23:59:59Z")
+	NullTime = int32(zt.Unix())
+}
+
 type TimeStamp []byte
 
 func (ts TimeStamp) Time() time.Time {
