@@ -14,11 +14,18 @@ type ColumnType struct {
 }
 
 type DataTable struct {
-	Metadata []*ColumnType
-	Columns  []*Column
+	metadata []*ColumnType
+	columns  []*Column
+	names    map[string]int
 }
 
-func (dt *DataTable) AddColumn(ct *ColumnType) {
-	dt.Metadata = append(dt.Metadata, ct)
-	dt.Columns = append(dt.Columns, NewColumnZeroVal(ct.Lines, ct.UniqueValues, ct.ZeroValue))
+func (dt *DataTable) AddColumn(ct *ColumnType) int {
+	idx := len(dt.metadata)
+	if dt.names == nil {
+		dt.names = make(map[string]int)
+	}
+	dt.names[ct.Name] = idx
+	dt.metadata = append(dt.metadata, ct)
+	dt.columns = append(dt.columns, NewColumnZeroVal(ct.Lines, ct.UniqueValues, ct.ZeroValue))
+	return idx
 }
