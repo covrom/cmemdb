@@ -51,7 +51,7 @@ func (dt *DataTable) Select(colindex int, where ColumnValue, opts QueryOptions) 
 	}
 
 	col.RLock()
-	
+
 	// TODO: lock in iterator
 
 	iter := col.IteratorWithFilterVal(DataEntry(de), opts&SELECT_DESC != 0, opts&SELECT_NEQ != 0)
