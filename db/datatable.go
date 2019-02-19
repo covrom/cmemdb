@@ -42,3 +42,57 @@ func (dt *DataTable) Insert(colindex int, id IDEntry, val ColumnValue, opts Quer
 	col.Unlock()
 	return id
 }
+
+func (dt *DataTable) Select(colindex int, where ColumnValue, opts QueryOptions) IDIterator {
+	col := dt.columns[colindex]
+	de, ok := col.dict.In(where)
+	if !ok {
+		return nil
+	}
+
+	col.RLock()
+	
+	// TODO: lock in iterator
+
+	iter := col.IteratorWithFilterVal(DataEntry(de), opts&SELECT_DESC != 0, opts&SELECT_NEQ != 0)
+	col.RUnlock()
+
+	return iter
+}
+
+func (dt *DataTable) Or(iters ...IDIterator) IDIterator {
+	if len(iters) == 0 {
+		return nil
+	}
+	return NewIteratorMerge(iters...)
+}
+
+func (dt *DataTable) And(iters ...IDIterator) IDIterator {
+	if len(iters) == 0 {
+		return nil
+	}
+	iter := NewIteratorIntersect(iters[0].Reversed())
+	for _, it := range iters {
+		iter.Append(it)
+	}
+	return iter
+}
+
+func (dt *DataTable) Sub(iter IDIterator, diffIters ...IDIterator) IDIterator {
+	if iter == nil {
+		return nil
+	}
+
+	var isec *IntersectIterator
+	if it, ok := iter.(*IntersectIterator); ok {
+		isec = it
+	} else {
+		isec = NewIteratorIntersect(iter.Reversed())
+		isec.Append(iter)
+	}
+
+	for _, it := range diffIters {
+		isec.AppendDiff(it)
+	}
+	return isec
+}

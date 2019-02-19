@@ -67,7 +67,7 @@ func (c *Column) IteratorWithFilterId(filter []IDEntry, reverse bool) IDIterator
 
 }
 
-func IteratorByIds(filter []IDEntry, reverse bool) IDIterator {
+func NewIteratorByIds(filter []IDEntry, reverse bool) IDIterator {
 	if reverse {
 		return &RangeIterator{
 			pos:    int32(len(filter)),
@@ -678,7 +678,7 @@ type MergeIterator struct {
 	lastJumpOk  bool
 }
 
-func NewMergeIterator(iterators ...IDIterator) *MergeIterator {
+func NewIteratorMerge(iterators ...IDIterator) *MergeIterator {
 	if len(iterators) == 0 {
 		panic("iterators not defined")
 	}
