@@ -100,6 +100,8 @@ func (c *Column) IteratorWithFilterVal(filter DataEntry, reverse, noneq bool) (r
 	return ret
 }
 
+// TODO: gte/lte iterators
+
 type ColumnIterator struct {
 	pos        int32
 	grow       int32
