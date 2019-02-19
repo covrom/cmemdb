@@ -8,14 +8,12 @@ type DataEntry int32
 
 const NullEntry DataEntry = -1
 
-const bucketsCount = 1 << 16
+func remFunc(v, m uint32) (uint32, uint32) { return v % m, v / m } // l, h
 
-func remFunc(v uint32) (uint16, byte) { return uint16(v & 0xffff), byte(v >> 16) }
-
-func valFunc(b uint16, h byte) uint32 { return (uint32(h) << 16) | uint32(b) }
+func valFunc(l, h, m uint32) uint32 { return h*m + l }
 
 type valEntry struct {
-	rem byte
+	rem uint32
 	ids []IDEntry
 }
 
@@ -26,17 +24,21 @@ type kvSet struct {
 
 type Column struct {
 	sync.RWMutex
+
 	// кластерный индекс, сортирован в порядке возрастания ключа (ID)
 	// индекс коллекции - это ID
 	// могут быть пропуски ID, в них DataEntry==empty
 	cluster []DataEntry
+
 	// индекс, по значению (DataEntry), отсортирован только в рамках одного bucket
 	// все одинаковые значения находятся в одном bucket
 	// позволяет быстро найти по значению все ID, отсортированные по возрастанию
 	// индекс коллекции - значение DataEntry
-	values [][]valEntry
-	bmp    []uint64 // биткарта
-	count  []int32  // количества по idx=val
+	bucketsCount uint32
+	values       [][]valEntry
+
+	bmp   []uint64 // биткарта
+	count []int32  // количества по idx=val
 
 	dict *Dictonary
 
@@ -78,8 +80,21 @@ func NewColumnZeroDataEntry(lines, vals int, dct *Dictonary, zeroval DataEntry) 
 		ret.bmp = make([]uint64, 1+(lines>>4))
 		ret.count = make([]int32, 16)
 	} else {
+		d := lines / vals // lines per one value
+		switch {
+		case d > 10000000:
+			ret.bucketsCount = 1 << 20
+		case d > 1000000:
+			ret.bucketsCount = 1 << 16
+		case d > 100000:
+			ret.bucketsCount = 1 << 13
+		case d > 10000:
+			ret.bucketsCount = 1 << 10
+		default:
+			ret.bucketsCount = 1 << 8
+		}
 		ret.cluster = make([]DataEntry, 0, lines)
-		ret.values = make([][]valEntry, bucketsCount)
+		ret.values = make([][]valEntry, ret.bucketsCount)
 		ret.useval = true
 	}
 	go ret.workerSet()
@@ -100,7 +115,7 @@ func (c *Column) SetVal(id IDEntry, v ColumnValue, upd, async bool) {
 	}
 }
 
-func binSearchValEntry(a []valEntry, x byte) uint32 {
+func binSearchValEntry(a []valEntry, x uint32) uint32 {
 	n := uint32(len(a))
 	i, j := uint32(0), n
 	for i < j {
@@ -164,7 +179,7 @@ func (c *Column) setCluster(id IDEntry, v DataEntry, clearset bool) {
 
 // нельзя вызывать для бинарных!
 func (c *Column) Delete(id IDEntry, oldv DataEntry) {
-	bck, rem := remFunc(uint32(oldv))
+	bck, rem := remFunc(uint32(oldv), c.bucketsCount)
 	cv := c.values[bck]
 	ln := len(cv)
 	ii := int(binSearchValEntry(cv, rem))
@@ -217,7 +232,7 @@ func (c *Column) set(id IDEntry, v DataEntry) {
 		return
 	}
 
-	bck, rem := remFunc(uint32(v))
+	bck, rem := remFunc(uint32(v), c.bucketsCount)
 	cv := c.values[bck]
 	ln := len(cv)
 	ii := int(binSearchValEntry(cv, rem))
@@ -355,7 +370,7 @@ func (c *Column) GetV(v DataEntry) []IDEntry {
 	if c.use1b || c.use2b || c.use4b {
 		panic("GetV is not defined for bitmap columns")
 	}
-	bck, rem := remFunc(uint32(v))
+	bck, rem := remFunc(uint32(v), c.bucketsCount)
 	cv := c.values[bck]
 	ln := len(cv)
 	ii := int(binSearchValEntry(cv, rem))
@@ -364,6 +379,24 @@ func (c *Column) GetV(v DataEntry) []IDEntry {
 	}
 	return nil
 }
+
+// func (c *Column) GetVPos(v DataEntry) (block uint16,idx uint32) {
+// 	if c.use1b || c.use2b || c.use4b {
+// 		panic("GetVPos is not defined for bitmap columns")
+// 	}
+// 	bck, rem := remFunc(uint32(v))
+// 	cv := c.values[bck]
+// 	ii := binSearchValEntry(cv, rem)
+// 	return bck, ii
+// }
+
+// func (c *Column) GetFromPos(block uint16,idx uint32)DataEntry {
+// 	cv := c.values[bck]
+// 	ln := len(cv)
+// 	if idx < ln && cv[idx].rem == rem {
+
+// 	}
+// }
 
 func (c *Column) GetCountV(v DataEntry) int32 {
 	if c.use1b || c.use2b || c.use4b {
@@ -376,9 +409,10 @@ func (c *Column) RangeVals(f func(v DataEntry, ids []IDEntry)) {
 	if c.use1b || c.use2b || c.use4b {
 		panic("RangeVals is not defined for bitmap columns")
 	} else {
+		bck := c.bucketsCount
 		for i, bucket := range c.values {
 			for _, val := range bucket {
-				f(DataEntry(valFunc(uint16(i), val.rem)), val.ids)
+				f(DataEntry(valFunc(uint32(i), val.rem, bck)), val.ids)
 			}
 		}
 	}
