@@ -394,6 +394,9 @@ func (c *Column) GetV(v DataEntry) []IDEntry {
 	return nil
 }
 
+// FIXME: compare ColumnValues instead of DataEntry
+// FIXME: monotonic fast values buckets by range of values
+
 func (c *Column) IterateVUp(v DataEntry, f func(v DataEntry, ids []IDEntry) bool) {
 	if c.use1b || c.use2b || c.use4b {
 		panic("IterateUp is not defined for bitmap columns")

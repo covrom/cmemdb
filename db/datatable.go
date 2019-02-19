@@ -54,6 +54,8 @@ func (dt *DataTable) Select(colindex int, where ColumnValue, opts QueryOptions) 
 
 	// TODO: lock in iterator
 
+	// TODO: GT/GTE/LT/LTE iterators
+
 	iter := col.IteratorWithFilterVal(DataEntry(de), opts&SELECT_DESC != 0, opts&SELECT_NEQ != 0)
 	col.RUnlock()
 
