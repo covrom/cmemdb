@@ -60,6 +60,14 @@ func (dt *DataTable) Select(colindex int, where ColumnValue, opts QueryOptions) 
 	return iter
 }
 
+func (dt *DataTable) SelectN(colname string, where ColumnValue, opts QueryOptions) IDIterator {
+	colidx, ok := dt.names[colname]
+	if !ok {
+		return nil
+	}
+	return dt.Select(colidx, where, opts)
+}
+
 func (dt *DataTable) Or(iters ...IDIterator) IDIterator {
 	if len(iters) == 0 {
 		return nil
