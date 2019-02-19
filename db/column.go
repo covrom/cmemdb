@@ -115,12 +115,26 @@ func (c *Column) SetVal(id IDEntry, v ColumnValue, upd, async bool) {
 	}
 }
 
-func binSearchValEntry(a []valEntry, x uint32) uint32 {
+func binSearchValEntryFirst(a []valEntry, x uint32) uint32 {
 	n := uint32(len(a))
 	i, j := uint32(0), n
 	for i < j {
 		h := (i + j) >> 1
 		if a[h].rem < x {
+			i = h + 1
+		} else {
+			j = h
+		}
+	}
+	return i
+}
+
+func binSearchValEntryLast(a []valEntry, x uint32) uint32 {
+	n := uint32(len(a))
+	i, j := uint32(0), n
+	for i < j {
+		h := (i + j) >> 1
+		if a[h].rem <= x {
 			i = h + 1
 		} else {
 			j = h
@@ -182,7 +196,7 @@ func (c *Column) Delete(id IDEntry, oldv DataEntry) {
 	bck, rem := remFunc(uint32(oldv), c.bucketsCount)
 	cv := c.values[bck]
 	ln := len(cv)
-	ii := int(binSearchValEntry(cv, rem))
+	ii := int(binSearchValEntryFirst(cv, rem))
 	if ii < ln && cv[ii].rem == rem {
 		lnids := len(cv[ii].ids)
 		iids := int(binApproxSearchIDEntry(cv[ii].ids, id))
@@ -235,7 +249,7 @@ func (c *Column) set(id IDEntry, v DataEntry) {
 	bck, rem := remFunc(uint32(v), c.bucketsCount)
 	cv := c.values[bck]
 	ln := len(cv)
-	ii := int(binSearchValEntry(cv, rem))
+	ii := int(binSearchValEntryFirst(cv, rem))
 	if ii < ln && cv[ii].rem == rem {
 		// уже есть значение - пробуем добавить ID
 		lnids := len(cv[ii].ids)
@@ -373,30 +387,63 @@ func (c *Column) GetV(v DataEntry) []IDEntry {
 	bck, rem := remFunc(uint32(v), c.bucketsCount)
 	cv := c.values[bck]
 	ln := len(cv)
-	ii := int(binSearchValEntry(cv, rem))
+	ii := int(binSearchValEntryFirst(cv, rem))
 	if ii < ln && cv[ii].rem == rem {
 		return cv[ii].ids
 	}
 	return nil
 }
 
-// func (c *Column) GetVPos(v DataEntry) (block uint16,idx uint32) {
-// 	if c.use1b || c.use2b || c.use4b {
-// 		panic("GetVPos is not defined for bitmap columns")
-// 	}
-// 	bck, rem := remFunc(uint32(v))
-// 	cv := c.values[bck]
-// 	ii := binSearchValEntry(cv, rem)
-// 	return bck, ii
-// }
+func (c *Column) IterateVUp(v DataEntry, f func(v DataEntry, ids []IDEntry) bool) {
+	if c.use1b || c.use2b || c.use4b {
+		panic("IterateUp is not defined for bitmap columns")
+	}
+	bcnt := c.bucketsCount
+	bck, rem := remFunc(uint32(v), c.bucketsCount)
+	cv := c.values[bck]
+	ln := uint32(len(cv))
+	ii := binSearchValEntryFirst(cv, rem)
+	for {
+		for ii >= ln {
+			bck++
+			if bck >= uint32(len(c.values)) {
+				break
+			}
+			cv = c.values[bck]
+			ln = uint32(len(cv))
+			ii = binSearchValEntryFirst(cv, rem)
+		}
+		if !f(DataEntry(valFunc(ii, cv[ii].rem, bcnt)), cv[ii].ids) {
+			break
+		}
+		ii++
+	}
+}
 
-// func (c *Column) GetFromPos(block uint16,idx uint32)DataEntry {
-// 	cv := c.values[bck]
-// 	ln := len(cv)
-// 	if idx < ln && cv[idx].rem == rem {
-
-// 	}
-// }
+func (c *Column) IterateVDown(v DataEntry, f func(v DataEntry, ids []IDEntry) bool) {
+	if c.use1b || c.use2b || c.use4b {
+		panic("IterateUp is not defined for bitmap columns")
+	}
+	bcnt := c.bucketsCount
+	bck, rem := remFunc(uint32(v), c.bucketsCount)
+	bcki := int32(bck)
+	cv := c.values[bcki]
+	ii := int32(binSearchValEntryLast(cv, rem))
+	for {
+		ii--
+		for ii < 0 {
+			bcki--
+			if bcki < 0 {
+				break
+			}
+			cv = c.values[bcki]
+			ii = int32(binSearchValEntryLast(cv, rem)) - 1
+		}
+		if !f(DataEntry(valFunc(uint32(ii), cv[ii].rem, bcnt)), cv[ii].ids) {
+			break
+		}
+	}
+}
 
 func (c *Column) GetCountV(v DataEntry) int32 {
 	if c.use1b || c.use2b || c.use4b {
