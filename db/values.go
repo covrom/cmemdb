@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+const NewIDEntry IDEntry = 0xffffffff
+
 type IDEntry uint32
 
 func (id IDEntry) MarshalJSON() ([]byte, error) {
