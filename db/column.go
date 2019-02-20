@@ -396,6 +396,7 @@ func (c *Column) GetV(v DataEntry) []IDEntry {
 
 // FIXME: compare ColumnValues instead of DataEntry
 // FIXME: monotonic fast values buckets by range of values
+// TODO: buckets or t-tree?
 
 func (c *Column) IterateVUp(v DataEntry, f func(v DataEntry, ids []IDEntry) bool) {
 	if c.use1b || c.use2b || c.use4b {
