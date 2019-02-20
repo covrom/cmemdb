@@ -668,6 +668,8 @@ func (iter *IntersectIterator) NextID() IDEntry {
 	return iter.currid
 }
 
+//TODO: multi-range merge iterator (w/wo workers)
+
 type MergeIterator struct {
 	// сортирован по увеличению длины, последний итератор - самый длинный
 	iterators   []IDIterator
