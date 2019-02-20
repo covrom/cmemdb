@@ -1,5 +1,9 @@
 package hattrie
 
+import (
+	"bytes"
+)
+
 const (
 	// set the default number of slots in each container
 	HASH_SLOTS uint64 = 512
@@ -54,4 +58,33 @@ func resizeArray(ht hashTable, idx, arrayOffset, requiredIncrease uint32) hashTa
 		}
 	}
 	return ht
+}
+
+func hashLookup(ht hashTable, query []byte) bool {
+	i := bitwiseHash(query)
+	if i >= uint32(len(ht)) {
+		return false
+	}
+	array := ht[i]
+	for {
+		if len(array) < 3 {
+			break
+		}
+		// calculate the length of the current string in the array.
+		// Up to the first two bytes can be used to store the length of the string
+		ln := uint32(array[0])
+		if ln >= 128 {
+			ln = ((ln & 0x7f) << 8) | uint32(array[1])
+		}
+		array = array[2:]
+		word := array[:ln]
+		if bytes.Equal(word, query) {
+			return true
+		}
+		if uint32(len(array)) <= ln {
+			break
+		}
+		array = array[ln:]
+	}
+	return false
 }
