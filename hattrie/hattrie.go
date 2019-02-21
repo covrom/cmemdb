@@ -184,3 +184,7 @@ func NewTrie() *TriePack {
 	tp.numTries = 1
 	return tp
 }
+
+func (tp *TriePack) search(word []byte) uint64 {
+
+}
