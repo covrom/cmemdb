@@ -24,16 +24,16 @@ type hashTable [HASH_SLOTS][]byte
 func resizeArray(ht hashTable, idx, requiredIncrease uint32) {
 	if ht[idx] == nil {
 		if requiredIncrease <= _32_BYTES {
-			ht[idx] = make([]byte, 0, _32_BYTES)
+			ht[idx] = make([]byte, requiredIncrease, _32_BYTES)
 		} else {
 			numberOfBlocks := ((requiredIncrease - 1) >> 6) + 1
-			ht[idx] = make([]byte, 0, numberOfBlocks<<6)
+			ht[idx] = make([]byte, requiredIncrease, numberOfBlocks<<6)
 		}
 	} else {
 		oldArraySize := uint32(len(ht[idx]))
 		newArraySize := oldArraySize + requiredIncrease
 		if oldArraySize <= _32_BYTES && newArraySize <= _64_BYTES && newArraySize > _32_BYTES {
-			tmp := make([]byte, oldArraySize, _64_BYTES)
+			tmp := make([]byte, newArraySize, _64_BYTES)
 			copy(tmp, ht[idx])
 			ht[idx] = tmp
 			return
@@ -41,7 +41,7 @@ func resizeArray(ht hashTable, idx, requiredIncrease uint32) {
 			numberOfBlocks := ((oldArraySize - 1) >> 6) + 1
 			numberOfNewBlocks := ((newArraySize - 1) >> 6) + 1
 			if numberOfNewBlocks > numberOfBlocks {
-				tmp := make([]byte, oldArraySize, numberOfNewBlocks<<6)
+				tmp := make([]byte, newArraySize, numberOfNewBlocks<<6)
 				copy(tmp, ht[idx])
 				ht[idx] = tmp
 			}
@@ -103,8 +103,7 @@ func hashInsert(ht hashTable, query []byte) bool {
 	}
 	arroff := uint32(len(ht[idx]))
 	resizeArray(ht, idx, lnadd)
-	array := ht[idx][:lnadd]
-	ht[idx] = array
+	array := ht[idx]
 	if lnq < 128 {
 		array[arroff] = byte(lnq)
 		array = array[1:]
