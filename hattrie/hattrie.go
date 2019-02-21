@@ -157,7 +157,7 @@ func newBucket() []byte {
 func full(b []byte) bool {
 	_ = b[3]
 	mPtr := *(*uintptr)(unsafe.Pointer(&b))
-	consumed := *(*uint32)(unsafe.Pointer(mPtr))
+	consumed := *(*uint32)(unsafe.Pointer(mPtr + KEYS_IN_BUCKET))
 	return consumed > BUCKET_SIZE_LIM
 
 	// unsafe examples:
