@@ -2,7 +2,6 @@ package hattrie
 
 import (
 	"bytes"
-	"unsafe"
 )
 
 const (
@@ -11,8 +10,6 @@ const (
 	_32_BYTES                    = 32
 	_64_BYTES                    = 64
 	triePackEntryCapacity        = 1512
-	BUCKET_OVERHEAD              = 8
-	BUCKET_SIZE                  = (HASH_SLOTS * 8) + BUCKET_OVERHEAD
 	KEYS_IN_BUCKET               = 0
 	BUCKET_SIZE_LIM              = 65536
 )
@@ -122,10 +119,24 @@ func hashInsert(ht hashTable, query []byte) bool {
 	return true
 }
 
-type triePackEntry [256]*byte
+type flagTrie byte
+
+const (
+	FLAG_TRIE   flagTrie = 1
+	FLAG_BUCKET flagTrie = 2
+)
+
+type triePackNode struct {
+	ht   hashTable
+	pos  triePos
+	flag flagTrie
+	eof  bool
+}
+
+type triePackEntry [256]triePackNode
 
 type TriePack struct {
-	array    [][]triePackEntry
+	array    [][triePackEntryCapacity]triePackEntry
 	arrayIdx uint32
 	counter  uint32
 	rootTrie triePos
@@ -141,43 +152,18 @@ func (tp *TriePack) newTrie() triePos {
 	if cnt == triePackEntryCapacity {
 		tp.arrayIdx++
 		for tp.arrayIdx >= uint32(len(tp.array)) {
-			tp.array = append(tp.array, nil)
+			tp.array = append(tp.array, [triePackEntryCapacity]triePackEntry{})
 		}
-		tp.array[tp.arrayIdx] = make([]triePackEntry, triePackEntryCapacity)
 		tp.counter = 0
 	}
 	tp.counter++
 	return triePos{tp.arrayIdx, cnt}
 }
 
-func newBucket() []byte {
-	return make([]byte, BUCKET_SIZE)
-}
-
-func full(b []byte) bool {
-	_ = b[3]
-	mPtr := *(*uintptr)(unsafe.Pointer(&b))
-	consumed := *(*uint32)(unsafe.Pointer(mPtr + KEYS_IN_BUCKET))
-	return consumed > BUCKET_SIZE_LIM
-
-	// unsafe examples:
-	// mPtr := *(*uintptr)(unsafe.Pointer(&b))
-	// a0 := *(*int)(unsafe.Pointer(mPtr))
-	// a1 := *(*int)(unsafe.Pointer(mPtr + 4))
-
-	// d := (*reflect.SliceHeader)(unsafe.Pointer(&b))
-	// h := &reflect.SliceHeader{
-	// 	Data: d.Data,
-	// 	Len:  d.Len / 4,
-	// 	Cap:  d.Cap / 4,
-	// }
-	// dd := *(*[]int32)(unsafe.Pointer(h))
-}
-
 func NewTrie() *TriePack {
 	tp := &TriePack{
-		array: [][]triePackEntry{
-			make([]triePackEntry, triePackEntryCapacity),
+		array: [][triePackEntryCapacity]triePackEntry{
+			[triePackEntryCapacity]triePackEntry{},
 		},
 	}
 	tp.rootTrie = tp.newTrie()
@@ -185,6 +171,23 @@ func NewTrie() *TriePack {
 	return tp
 }
 
-func (tp *TriePack) search(word []byte) uint64 {
+func (tp *TriePack) search(word []byte) bool {
+	cTrie := tp.rootTrie
+	for i, ch := range word {
+		// fetch the corresponding trie node pointer, if its null, then the string isn't in the HAT-trie.
+		x := tp.array[cTrie.i][cTrie.j][ch]
+		switch x.flag {
+		case 0:
+			return false
+		case FLAG_TRIE:
+			cTrie = x.pos
+		case FLAG_BUCKET:
+			// consume the lead character of the query string.
+			if i == len(word) {
+				return x.eof
+			}
+			return hashLookup(x.ht, word[i:])
+		}
 
+	}
 }
