@@ -21,33 +21,28 @@ func bitwiseHash(b []byte) uint32 {
 
 type hashTable [HASH_SLOTS][]byte
 
-func resizeArray(ht hashTable, idx, arrayOffset, requiredIncrease uint32) {
-	// FIXME: append
-	if arrayOffset == 0 {
+func resizeArray(ht hashTable, idx, requiredIncrease uint32) {
+	if ht[idx] == nil {
 		if requiredIncrease <= _32_BYTES {
-			ht[idx] = make([]byte, _32_BYTES)
+			ht[idx] = make([]byte, 0, _32_BYTES)
 		} else {
 			numberOfBlocks := ((requiredIncrease - 1) >> 6) + 1
-			ht[idx] = make([]byte, numberOfBlocks<<6)
+			ht[idx] = make([]byte, 0, numberOfBlocks<<6)
 		}
 	} else {
-		oldArraySize := arrayOffset + 1
-		newArraySize := arrayOffset + requiredIncrease
-		if oldArraySize <= _32_BYTES && newArraySize <= _32_BYTES {
-			return
-		} else if oldArraySize <= _32_BYTES && newArraySize <= _64_BYTES {
-			tmp := make([]byte, _64_BYTES)
-			copy(tmp, ht[idx][:oldArraySize])
+		oldArraySize := uint32(len(ht[idx]))
+		newArraySize := oldArraySize + requiredIncrease
+		if oldArraySize <= _32_BYTES && newArraySize <= _64_BYTES && newArraySize > _32_BYTES {
+			tmp := make([]byte, oldArraySize, _64_BYTES)
+			copy(tmp, ht[idx])
 			ht[idx] = tmp
 			return
-		} else if oldArraySize <= _64_BYTES && newArraySize <= _64_BYTES {
-			return
-		} else {
+		} else if newArraySize > _64_BYTES {
 			numberOfBlocks := ((oldArraySize - 1) >> 6) + 1
 			numberOfNewBlocks := ((newArraySize - 1) >> 6) + 1
 			if numberOfNewBlocks > numberOfBlocks {
-				tmp := make([]byte, numberOfNewBlocks<<6)
-				copy(tmp, ht[idx][:numberOfBlocks<<6])
+				tmp := make([]byte, oldArraySize, numberOfNewBlocks<<6)
+				copy(tmp, ht[idx])
 				ht[idx] = tmp
 			}
 		}
@@ -102,13 +97,14 @@ func hashInsert(ht hashTable, query []byte) bool {
 		}
 	}
 	lnq := uint32(len(query))
-	lnadd := lnq + 2
+	lnadd := lnq + 1
 	if lnq >= 128 {
 		lnadd++
 	}
 	arroff := uint32(len(ht[idx]))
-	resizeArray(ht, idx, arroff, lnadd)
-	array := ht[idx]
+	resizeArray(ht, idx, lnadd)
+	array := ht[idx][:lnadd]
+	ht[idx] = array
 	if lnq < 128 {
 		array[arroff] = byte(lnq)
 		array = array[1:]
@@ -118,7 +114,6 @@ func hashInsert(ht hashTable, query []byte) bool {
 		array = array[2:]
 	}
 	copy(array, query)
-	// FIXME: переделать на переменные длины массивов и append с cap, кратным кэшлайну
 	return true
 }
 
