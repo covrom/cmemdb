@@ -6,12 +6,12 @@ import (
 
 const (
 	// set the default number of slots in each container
-	HASH_SLOTS            uint64 = 512
-	_32_BYTES                    = 32
-	_64_BYTES                    = 64
-	triePackEntryCapacity        = 1512
-	KEYS_IN_BUCKET               = 0
-	BUCKET_SIZE_LIM              = 65536
+	HASH_SLOTS      uint64 = 512
+	_32_BYTES              = 32
+	_64_BYTES              = 64
+	trieEntryCap           = 1512
+	KEYS_IN_BUCKET         = 0
+	BUCKET_SIZE_LIM        = 65536
 )
 
 func bitwiseHash(b []byte) uint32 {
@@ -133,10 +133,13 @@ type triePackNode struct {
 	eof  bool
 }
 
-type triePackEntry [256]triePackNode
+type triePackEntry struct {
+	nodes [256]triePackNode
+	eof   bool
+}
 
 type TriePack struct {
-	array    [][triePackEntryCapacity]triePackEntry
+	array    [][trieEntryCap]triePackEntry
 	arrayIdx uint32
 	counter  uint32
 	rootTrie triePos
@@ -149,10 +152,10 @@ type triePos struct {
 
 func (tp *TriePack) newTrie() triePos {
 	cnt := tp.counter
-	if cnt == triePackEntryCapacity {
+	if cnt == trieEntryCap {
 		tp.arrayIdx++
 		for tp.arrayIdx >= uint32(len(tp.array)) {
-			tp.array = append(tp.array, [triePackEntryCapacity]triePackEntry{})
+			tp.array = append(tp.array, [trieEntryCap]triePackEntry{})
 		}
 		tp.counter = 0
 	}
@@ -162,8 +165,8 @@ func (tp *TriePack) newTrie() triePos {
 
 func NewTrie() *TriePack {
 	tp := &TriePack{
-		array: [][triePackEntryCapacity]triePackEntry{
-			[triePackEntryCapacity]triePackEntry{},
+		array: [][trieEntryCap]triePackEntry{
+			[trieEntryCap]triePackEntry{},
 		},
 	}
 	tp.rootTrie = tp.newTrie()
@@ -175,7 +178,7 @@ func (tp *TriePack) search(word []byte) bool {
 	cTrie := tp.rootTrie
 	for i, ch := range word {
 		// fetch the corresponding trie node pointer, if its null, then the string isn't in the HAT-trie.
-		x := tp.array[cTrie.i][cTrie.j][ch]
+		x := tp.array[cTrie.i][cTrie.j].nodes[ch]
 		switch x.flag {
 		case 0:
 			return false
@@ -188,6 +191,8 @@ func (tp *TriePack) search(word []byte) bool {
 			}
 			return hashLookup(x.ht, word[i:])
 		}
-
 	}
+	// if we have consumed the entire query string and haven't reached a container, then we must check the last trie node
+	// we accessed to determine whether or not the string exists.
+	return tp.array[cTrie.i][cTrie.j].eof
 }
