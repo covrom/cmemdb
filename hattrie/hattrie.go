@@ -23,7 +23,7 @@ func bitwiseHash(b []byte) uint32 {
 	return uint32((h & 0x7fffffff) & (HASH_SLOTS - 1))
 }
 
-type hashTable [HASH_SLOTS][]byte
+type hashTable [][]byte
 
 func resizeArray(ht hashTable, idx, requiredIncrease uint32) {
 	if ht[idx] == nil {
@@ -201,7 +201,7 @@ func (tp *TriePack) search(word []byte) bool {
 }
 
 func (tp *TriePack) newContainer(cTrie triePos, path uint32, word []byte) {
-	x := triePackNode{flag: FLAG_BUCKET}
+	x := triePackNode{flag: FLAG_BUCKET, ht: make(hashTable, BUCKET_SIZE)}
 	if len(word) == 0 {
 		x.eof = true
 	} else {
