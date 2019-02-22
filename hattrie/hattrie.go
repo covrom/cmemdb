@@ -126,8 +126,14 @@ const (
 	FLAG_BUCKET flagTrie = 2
 )
 
+type bucket struct {
+	keycnt uint32
+	eof    bool
+}
+
 type triePackNode struct {
 	ht   hashTable
+	bc   bucket
 	pos  triePos
 	flag flagTrie
 	eof  bool
@@ -139,11 +145,12 @@ type triePackEntry struct {
 }
 
 type TriePack struct {
-	array    [][trieEntryCap]triePackEntry
-	arrayIdx uint32
-	counter  uint32
-	rootTrie triePos
-	numTries int
+	array     [][trieEntryCap]triePackEntry
+	arrayIdx  uint32
+	counter   uint32
+	rootTrie  triePos
+	numTries  int
+	numBucket int
 }
 
 type triePos struct {
@@ -196,3 +203,17 @@ func (tp *TriePack) search(word []byte) bool {
 	// we accessed to determine whether or not the string exists.
 	return tp.array[cTrie.i][cTrie.j].eof
 }
+
+func (tp *TriePack) newContainer(cTrie triePos, path uint32, word []byte) {
+	x := bucket{}
+	if len(word) == 0 {
+		x.eof = true
+	} else {
+		if hashInsert(tp.array[cTrie.i][cTrie.j].nodes[path].ht, word) {
+			x.keycnt++
+		}
+	}
+	tp.array[cTrie.i][cTrie.j].nodes[path].bc = x
+	tp.numBucket++
+}
+
