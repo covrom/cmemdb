@@ -1,0 +1,83 @@
+
+
+                        Source Code for the Paper:
+
+          Engineering a Sorted List Data Structure for 32 Bit Keys
+
+       Roman Dementiev, Lutz Kettner, Jens Mehnert, and Peter Sanders
+                   MPI Informatik, Stuhlsatzenhausweg 85, 
+                       66123 Saarbrucken, Germany
+            [dementiev,kettner,sanders,snej]@mpi-sb.mpg.de
+ 
+         In: Algorithm Engineering and Experiments (ALENEX'04)
+                       New Orleans, January 2004
+
+
+                                Abstract 
+
+    Search tree data structures like van Emde Boas trees are a
+    theoretically attractive alternative to comparison based search
+    trees because they have better asymptotic performance for small 
+    integer keys and large inputs. This paper studies their 
+    practicability using 32 bit keys as an example. While direct 
+    implementations of van Emde Boas trees cannot compete with good
+    implementations of comparison based data structures, our tuned
+    data structure significantly outperforms comparison based 
+    implementations for searching and shows at least comparable
+    performance for insertion and deletion.
+
+
+Copyright:
+
+    The source code is (c) Copyright 2003 Roman Dementiev, Lutz Kettner,
+    Jens Mehnert, and Peter Sanders, MPI Informatik, Stuhlsatzenhausweg 85, 
+    66123 Saarbrucken, Germany.
+
+Disclaimer:
+
+    We release all source code necesssary to build our new sorted list
+    data structure, currently called LVL1Tree, plus a benchmark driver 
+    program used by us to generate the test cases and do the timings 
+    reported in the paper. However, these are not all the sources that 
+    we used to test the correctness and to benchmark alternative versions
+    of the data structure. Furthermore, we do include the test driver for
+    the other search trees so that comparisons with STL map and LEDA 
+    2-16-trees are possible. We also include the orig-Stree we have, but 
+    we cannot release the necessary sources from LEDA to build the 
+    LEDA-Stree and our modified versions of it (change of the hashing)
+    that we also used for comparisons.
+
+Roadmap:
+
+    We plan to change and improve the interface design to follow the 
+    std::map and std::set interfaces and the same generic template 
+    design. We will monitor closely that these changes do not affect
+    our benchmark results in a negative way.
+
+Files:
+
+    General and test drivers:
+    
+        README          this file
+        Makefile        uses g++, check and edit its variables before make
+
+        FTL.h           driver class that generates the test instances
+                        and does the timing
+        start.cpp       
+        timer.h
+
+    Our search tree implementation, LVL1Tree is the public interface:
+
+        LVL1Tree.h      level 1 tree, i.e., the top level interface
+        LVL2Tree.h      level 2 tree
+        LVL3Tree.h      level 3 tree
+        Top1.h          stratified tree top structure for level 1
+        Top23.h         stratified tree top structure for level 2 and 3
+        Dlist.h         doubly linked list
+        LPHash.h        hash table with linear probing for 
+        allocator.h     memory allocators
+
+    Alternative search tree implementations:
+
+        STree_orig.h    original van Emde Boas trees
+
