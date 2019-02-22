@@ -1,3 +1,8 @@
+// Copyright 2019 Roman Covanyan https://github.com/covrom
+// Use of this source code is governed by a MIT license
+//
+// Package hattrie implements HAT-trie, originally implemented in C
+// by Dr. Nikolas Askitis https://github.com/naskitis
 package hattrie
 
 import (
