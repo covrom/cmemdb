@@ -12,6 +12,7 @@ const (
 	trieEntryCap           = 1512
 	KEYS_IN_BUCKET         = 0
 	BUCKET_SIZE_LIM        = 65536
+	BUCKET_SIZE            = (HASH_SLOTS * 8)
 )
 
 func bitwiseHash(b []byte) uint32 {
@@ -126,17 +127,12 @@ const (
 	FLAG_BUCKET flagTrie = 2
 )
 
-type bucket struct {
+type triePackNode struct {
+	ht     hashTable
+	pos    triePos
+	flag   flagTrie
 	keycnt uint32
 	eof    bool
-}
-
-type triePackNode struct {
-	ht   hashTable
-	bc   bucket
-	pos  triePos
-	flag flagTrie
-	eof  bool
 }
 
 type triePackEntry struct {
@@ -205,15 +201,14 @@ func (tp *TriePack) search(word []byte) bool {
 }
 
 func (tp *TriePack) newContainer(cTrie triePos, path uint32, word []byte) {
-	x := bucket{}
+	x := triePackNode{flag: FLAG_BUCKET}
 	if len(word) == 0 {
 		x.eof = true
 	} else {
-		if hashInsert(tp.array[cTrie.i][cTrie.j].nodes[path].ht, word) {
+		if hashInsert(x.ht, word) {
 			x.keycnt++
 		}
 	}
-	tp.array[cTrie.i][cTrie.j].nodes[path].bc = x
+	tp.array[cTrie.i][cTrie.j].nodes[path] = x
 	tp.numBucket++
 }
-
