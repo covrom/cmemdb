@@ -200,7 +200,7 @@ func (tp *TriePack) search(word []byte) bool {
 	return tp.array[cTrie.i][cTrie.j].eof
 }
 
-func (tp *TriePack) newContainer(cTrie triePos, path uint32, word []byte) {
+func (tp *TriePack) newContainer(cTrie triePos, path byte, word []byte) bool {
 	x := triePackNode{flag: FLAG_BUCKET, ht: make(hashTable, BUCKET_SIZE)}
 	if len(word) == 0 {
 		x.eof = true
@@ -211,4 +211,50 @@ func (tp *TriePack) newContainer(cTrie triePos, path uint32, word []byte) {
 	}
 	tp.array[cTrie.i][cTrie.j].nodes[path] = x
 	tp.numBucket++
+	return true
+}
+
+func (tp *TriePack) insert(word []byte) bool {
+	cTrie := tp.rootTrie
+	for i, ch := range word {
+		x := tp.array[cTrie.i][cTrie.j].nodes[ch]
+		switch x.flag {
+		case 0:
+			return tp.newContainer(cTrie, ch, word[i+1:])
+		case FLAG_TRIE:
+			cTrie = x.pos
+		case FLAG_BUCKET:
+			// if the string has been consumed, then we check the buckets end-of-string flag.
+			// If it is set, then the string already exists, otherwise we set it to complete the insertion.
+			if i == len(word) {
+				if x.eof {
+					return false
+				} else {
+					x.eof = true
+					tp.array[cTrie.i][cTrie.j].nodes[ch] = x
+					return true
+				}
+			}
+			// attempt to insert what remains of the string into the containers hash table
+			if hashInsert(x.ht, word[i+1:]) {
+				x.keycnt++
+				// see if we need to burst the container
+				if x.keycnt > BUCKET_SIZE_LIM {
+					x = HATTrieBurst(x, ch, cTrie)
+				}
+				tp.array[cTrie.i][cTrie.j].nodes[ch] = x
+				return true
+			}
+			// the string was found in the containers hash table
+			return false
+		}
+	}
+	// if we consumed the string prior to reaching any container, then we must set the end-of-string flag in the last
+	// trie node accessed, unless its already set, in which case, the insertion fails.
+	if tp.array[cTrie.i][cTrie.j].eof {
+		return false
+	} else {
+		tp.array[cTrie.i][cTrie.j].eof = true
+		return true
+	}
 }
