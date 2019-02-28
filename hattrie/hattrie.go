@@ -272,10 +272,11 @@ func (tp *TriePack) hatTrieBurst(ch byte, cTrie triePos) triePackNode {
 	tp.array[cTrie.i][cTrie.j].nodes[ch].pos = nTrie
 	tp.array[nTrie.i][nTrie.j].nodes[ch] = x
 	// we are splitting a pure bucket/container
-	tp.splitPure(cTrie, nTrie)
+	tp.splitPure(cTrie, ch, nTrie)
 	return tp.array[nTrie.i][nTrie.j].nodes[ch]
 }
 
-func (tp *TriePack) splitPure(cTrie, nTrie triePos) {
-
+func (tp *TriePack) splitPure(cTrie triePos, ch byte, nTrie triePos) {
+	array := tp.array[cTrie.i][cTrie.j].nodes[ch].ht
+	
 }
