@@ -245,7 +245,7 @@ func (tp *TriePack) insert(word []byte) bool {
 				x.keycnt++
 				// see if we need to burst the container
 				if x.keycnt > BUCKET_SIZE_LIM {
-					x = HATTrieBurst(x, ch, cTrie)
+					x = tp.hatTrieBurst(ch, cTrie)
 				}
 				tp.array[cTrie.i][cTrie.j].nodes[ch] = x
 				return true
@@ -262,4 +262,20 @@ func (tp *TriePack) insert(word []byte) bool {
 		tp.array[cTrie.i][cTrie.j].eof = true
 		return true
 	}
+}
+
+func (tp *TriePack) hatTrieBurst(ch byte, cTrie triePos) triePackNode {
+	nTrie := tp.newTrie()
+	tp.numTries++
+	x := triePackNode{flag: FLAG_TRIE, eof: tp.array[cTrie.i][cTrie.j].nodes[ch].eof}
+	tp.array[cTrie.i][cTrie.j].nodes[ch].eof = false
+	tp.array[cTrie.i][cTrie.j].nodes[ch].pos = nTrie
+	tp.array[nTrie.i][nTrie.j].nodes[ch] = x
+	// we are splitting a pure bucket/container
+	tp.splitPure(cTrie, nTrie)
+	return tp.array[nTrie.i][nTrie.j].nodes[ch]
+}
+
+func (tp *TriePack) splitPure(cTrie, nTrie triePos) {
+
 }
